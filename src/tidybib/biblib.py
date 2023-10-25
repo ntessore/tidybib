@@ -376,6 +376,8 @@ ORDER = [
     "year",
     "month",
     "volume",
+    "number",
+    "eid",
     "pages",
     "doi",
     "archiveprefix",
@@ -424,24 +426,23 @@ class BibtexFields(dict[str, str | BibtexMacro]):
         if len(self) == 0:
             out += "}"
         else:
-            out += ",\n"
             for field in sorted(self, key=_order_fields):
                 value = self[field]
                 field = PRETTY.get(field, field)
                 if macro := getattr(value, "macro", None):
                     value = macro
-                elif value.isdigit():
-                    pass
                 else:
                     if field == "title":
                         if value and value[0] == "{" and value[-1] == "}":
                             value = '"' + value + '"'
                         else:
                             value = '"{' + value + '}"'
+                    elif field == "year" and value.isdigit():
+                        pass
                     else:
                         value = "{" + value + "}"
-                out += f"{field:>13} = {value},\n"
-            out += "}"
+                out += f",\n{field:>13} = {value}"
+            out += "\n}"
         return out
 
 
@@ -476,7 +477,7 @@ def load(
         filename = fp.name
     except AttributeError:
         filename = "<stream>"
-    return loads(data, filename)
+    return loads(data, filename, macros=macros, warn_macros=warn_macros)
 
 
 def loads(
