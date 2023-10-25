@@ -1,0 +1,7 @@
+- id: tidybib
+  name: tidybib
+  entry: tidybib
+  language: python
+  types: [file, bib]
+  require_serial: true
+  description: "Format BibTeX files"
