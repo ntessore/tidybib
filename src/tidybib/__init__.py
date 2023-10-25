@@ -25,11 +25,21 @@ MACROS = {
     "dec": "12",
 }
 
+# character map for sorting same-date items by key in ascending order
+REVERSE = str.maketrans(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    "zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA9876543210",
+)
+
 
 def sortkey_year(item: tuple[str, biblib.BibtexFields]) -> tuple[str, ...]:
     """Sort bibliography entries by year, month, key."""
     key, entry = item
-    return entry.get("year", "0"), entry.get("month", "0"), key
+    return (
+        entry.get("year", "0"),  # sort by year in descending order
+        entry.get("month", "0"),  # then by month in descending order
+        key.translate(REVERSE),  # then by key in ascending order
+    )
 
 
 @contextmanager
