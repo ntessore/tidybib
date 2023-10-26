@@ -5,7 +5,7 @@
 The `tidybib` command takes BibTeX input files and reformats their contents.
 There is no configuration; everyone gets the same boring output.
 
-# Installation
+## Installation
 
 Install `tidybib` with pip:
 
@@ -16,7 +16,7 @@ without installation:
 
     pipx run tidybib
 
-# Usage
+## Usage
 
 Run `tidybib` on BibTex files `main.bib` and `aux.bib`:
 
@@ -34,7 +34,7 @@ You can also run `tidybib` on standard input:
 This will produce the formatted contents on standard output, and no files are
 changed.
 
-# Pre-commit hook
+## Pre-commit hook
 
 This repository contains a [pre-commit](https://pre-commit.com) hook to
 automatically run `tidybib` when committing BibTeX files with git. To use the
@@ -47,7 +47,7 @@ hook, add this to the `repos` list in your `.pre-commit-config.yaml` file:
     - id: tidybib
 ```
 
-# Acknowledgements
+## Acknowledgements
 
 All of the hard work of extracting a grammar and parser from the BibTeX source
 code was done by [**aclements/biblib**](https://github.com/aclements/biblib).
