@@ -33,7 +33,7 @@ parser.
 import re
 import warnings
 from collections.abc import Mapping
-from typing import Iterator, NamedTuple, NoReturn, TextIO, TypeAlias
+from typing import BinaryIO, Iterator, NamedTuple, NoReturn, TextIO, TypeAlias
 
 
 ## LOW-LEVEL API #######################################################
@@ -455,7 +455,7 @@ class BibtexData(NamedTuple):
 
 
 def load(
-    fp: TextIO,
+    fp: TextIO | BinaryIO,
     /,
     *,
     macros: Mapping[str, str] = {},
@@ -472,7 +472,14 @@ def load(
 
     """
 
-    data = fp.read()
+    data: str
+    data_or_bytes = fp.read()
+    if isinstance(data_or_bytes, str):
+        data = data_or_bytes
+    elif isinstance(data_or_bytes, bytes):
+        data = data_or_bytes.decode()
+    else:
+        raise TypeError("read() returned invalid data")
     try:
         filename = fp.name
     except AttributeError:

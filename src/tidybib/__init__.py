@@ -1,12 +1,9 @@
-import argparse
-import filecmp
-import os
 import sys
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import TextIO
-from . import biblib
+from . import biblib, inputfiles
 
 # default macros:
 # - turn month names into numeric values
@@ -43,49 +40,6 @@ def sortkey_year(item: tuple[str, biblib.BibtexFields]) -> tuple[str, ...]:
 
 
 @contextmanager
-def _input(file: str) -> Iterator[TextIO]:
-    """Opens an input file with '-' support."""
-    if file == "-":
-        yield sys.stdin
-    else:
-        with open(file) as fp:
-            yield fp
-
-
-@contextmanager
-def _output(file: str, perm: int | None = None) -> Iterator[TextIO]:
-    """Opens an output file with '-' support."""
-    if file == "-":
-        yield sys.stdout
-    elif perm is None:
-        with open(file, "w") as fp:
-            yield fp
-    else:
-        fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, perm)
-        with open(fd, "w") as fp:
-            try:
-                os.chmod(file, perm)
-            except OSError:
-                pass
-            yield fp
-
-
-def _tmpname(file: str) -> str:
-    """Return the temporary file name for tidybib output."""
-    if file == "-":
-        return "-"
-    prefix, name = os.path.split(file)
-    return os.path.join(prefix, "." + name.lstrip(".") + ".tidy")
-
-
-def _bakname(file: str) -> str:
-    """Return the backup file name for tidybib input."""
-    if file == "-":
-        return ""
-    return file + ".untidy"
-
-
-@contextmanager
 def handle_warnings() -> Iterator[None]:
     """Custom handler for warnings."""
 
@@ -97,7 +51,11 @@ def handle_warnings() -> Iterator[None]:
         file: TextIO | None = None,
         line: str | None = None,
     ) -> None:
-        print("[WARNING]", f"{filename}:", message, file=file)
+        parts = ["[WARNING]"]
+        if filename and filename[0] + filename[-1] != "<>":
+            parts += [f"{filename}:"]
+        parts += [str(message)]
+        print(*parts, file=file or sys.stderr)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -108,79 +66,19 @@ def handle_warnings() -> Iterator[None]:
 
 @handle_warnings()
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        prog="tidybib",
-        description="BibTeX formatter",
-        epilog="Report any issues to https://github.com/ntessore/tidybib",
-    )
-    parser.add_argument(
-        "--stdout",
-        action="store_true",
-        help="print output to stdout, do not modify files",
-    )
-    parser.add_argument(
-        "bibfile",
-        default="-",
-        nargs="*",
-        help="BibTeX source file(s)",
-    )
+    # iterate all input files or stdin
+    for file in inputfiles.files(None, True, ".untidy"):
+        # load current BibTeX file from string
+        bib = biblib.load(file, macros=MACROS, warn_macros=False)
 
-    args = parser.parse_args()
+        # sort entries by year in reverse order
+        entries = dict(sorted(bib.entries.items(), key=sortkey_year, reverse=True))
 
-    for file in args.bibfile:
-        # parse BibTeX from the input file; dash "-" for stdin is supported
-        with _input(file) as fp:
-            bib = biblib.load(fp, macros=MACROS, warn_macros=False)
+        # repack the bib tuple with the sorted entries
+        bib = bib._replace(entries=entries)
 
-            # try and store file permissions for later
-            perm = None
-            if fp is not sys.stdin:
-                try:
-                    perm = os.fstat(fp.fileno()).st_mode
-                except OSError:
-                    pass
-
-        # sort entries by year
-        bib = bib._replace(
-            entries=dict(sorted(bib.entries.items(), key=sortkey_year, reverse=True))
-        )
-
-        # get temporary output filename for the formatted file
-        if args.stdout:
-            out = "-"
-        else:
-            out = _tmpname(file)
-
-        # write the reformatted BibTeX file to temporary file
-        with _output(out, perm) as fp:
-            biblib.dump(fp, bib)
-
-        # if writing to stdout, we are done
-        if out == "-":
-            continue
-
-        # compare input and output files -- only replace input if files differ
-        if filecmp.cmp(file, out, shallow=False):
-            # files are equal, remove temporary output
-            os.unlink(out)
-        else:
-            # files not equal, get backup file name for original input file
-            bak = _bakname(file)
-            try:
-                os.unlink(bak)
-            except OSError:
-                pass
-
-            # try and move temporary file to input file
-            cleanup = False
-            try:
-                os.rename(file, bak)
-                cleanup = True
-                os.rename(out, file)
-                cleanup = False
-            finally:
-                if cleanup:
-                    os.rename(bak, file)
+        # output BibTeX in standard form to stdout, which points to file
+        biblib.dump(sys.stdout, bib)
 
     # all done
     return 0
