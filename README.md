@@ -42,7 +42,7 @@ hook, add this to the `repos` list in your `.pre-commit-config.yaml` file:
 
 ```yaml
 - repo: https://github.com/ntessore/tidybib
-  rev: v0.1.2
+  rev: v0.1.3
   hooks:
     - id: tidybib
 ```
